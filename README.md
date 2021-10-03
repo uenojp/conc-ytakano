@@ -1,1 +1,1 @@
-Inspired by git@github.com:utaka/conc-ytakano.git
+Inspired by https://github.com/oreilly-japan/conc_ytakano

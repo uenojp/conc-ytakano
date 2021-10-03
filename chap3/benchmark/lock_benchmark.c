@@ -6,8 +6,10 @@
 #include <unistd.h>
 
 #include "barrier.c"
-
-#define NUM_THREADS 10
+// #include "empty.c"
+#include "mutex.c"
+// #include "rwlock.c"
+// #include "rwlock_wr.c"
 
 /* バリア同期用変数
    nready: 計測準備ができたスレッドの数
@@ -51,7 +53,7 @@ void *timer(void *arg) {
         exit(1);
     }
 
-    sleep(3);
+    sleep(10);
     done = true;
 
     if (barrier(&ndone, NUM_THREADS) != 0) {

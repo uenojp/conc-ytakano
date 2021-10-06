@@ -7,7 +7,7 @@ pub struct Semaphore {
 }
 
 impl Semaphore {
-    fn new(max: isize) -> Self {
+    pub fn new(max: isize) -> Self {
         Semaphore {
             mutex: Mutex::new(0),
             cond: Condvar::new(),
@@ -15,16 +15,16 @@ impl Semaphore {
         }
     }
 
-    fn wait(&self) {
+    pub fn wait(&self) {
         let mut count = self.mutex.lock().unwrap();
-        *count += 1;
-        let _guard = self
+        count = self
             .cond
             .wait_while(count, |count| *count >= self.max)
             .unwrap();
+        *count += 1;
     }
 
-    fn post(&self) {
+    pub fn post(&self) {
         let mut count = self.mutex.lock().unwrap();
         *count -= 1;
         if *count < self.max {

@@ -1,4 +1,5 @@
 use std::ptr::{read_volatile, write_volatile};
+use std::sync::atomic::{Ordering, fence};
 use std::thread;
 
 const NUM_THREADS: usize = 4;
@@ -23,7 +24,9 @@ struct BakeryLock {
 
 impl BakeryLock {
     fn lock(&mut self, idx: usize) -> LockGuard {
+        fence(Ordering::SeqCst);
         write_mem!(&mut self.entering[idx], true);
+        fence(Ordering::SeqCst);
 
         let mut max = 0;
         for i in 0..NUM_THREADS {
@@ -35,7 +38,9 @@ impl BakeryLock {
         let ticket = max + 1;
         write_mem!(&mut self.tickets[idx], Some(ticket));
 
+        fence(Ordering::SeqCst);
         write_mem!(&mut self.entering[idx], false);
+        fence(Ordering::SeqCst);
 
         for i in 0..NUM_THREADS {
             if i == idx {
@@ -50,6 +55,7 @@ impl BakeryLock {
             }
         }
 
+        fence(Ordering::SeqCst); // dropのfenceがこのfenceと対になる
         LockGuard { idx }
     }
 }
@@ -60,6 +66,7 @@ struct LockGuard {
 
 impl Drop for LockGuard {
     fn drop(&mut self) {
+        fence(Ordering::SeqCst);
         write_mem!(&mut LOCK.tickets[self.idx], None);
     }
 }
@@ -77,9 +84,13 @@ fn main() {
     for i in 0..NUM_THREADS {
         let h = thread::spawn(move || {
             for _ in 0..NUM_LOOP {
-                let _lock = unsafe {
-                    LOCK.lock(i);
-                };
+                let _lock = unsafe { LOCK.lock(i) };
+                /* ↓ だと同期制御できない、具体的にはカウントが異なる
+                   なぜ???
+                   予想
+                   Lock.lock()が評価されて、_lockに代入される、という操作が1命令で行われなくなるから
+                   つまり、Lock.lock()のあとにスレッドが切り替わる可能背が↓にはある */
+                // let _lock = unsafe { LOCK.lock(i); };
                 let c = read_mem!(&COUNT);
                 write_mem!(&mut COUNT, c + 1);
             }
